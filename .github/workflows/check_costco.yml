@@ -17,7 +17,7 @@ jobs:
       # Optionally, use `jq` to pull one or more fields from the JSON to include in the SMS message
       - name: Parse data
         id: parse_data
-        run: echo '::set-output name=helloworld::'$(echo "helloworld")
+        run: echo '::set-output name=stock_status::'$([ -s data.txt ] && echo "out of stock" || echo "in stock")
           
       # Compare the response to the previous run, using a hash of the response as the cache key
       - name: Fetch Cache
@@ -31,13 +31,10 @@ jobs:
       # See https://github.com/twilio-labs/actions-sms for setup instructions
       # You could use a different notification action here, so long as you include the `if` condition below
       - name: Notify if data has changed
-        uses: twilio-labs/actions-sms@v1
+        uses: appleboy/facebook-action@master
         if: steps.cache.outputs.cache-hit != 'true'
-        env:
-          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
-          TWILIO_API_SECRET: ${{ secrets.TWILIO_API_SECRET }}
         with:
-          fromPhoneNumber: ${{ secrets.from_phone }}
-          toPhoneNumber: ${{ secrets.to_phone }}
-          message: "There's been a change! txt is now ${{ steps.parse_data.outputs.helloworld }}."
+          fb_page_token: ${{ secrets.FB_PAGE_TOKEN }}
+          fb_verify_token: ${{ secrets.FB_VERIFY_TOKEN }}
+          to: ${{ secrets.FB_TO }}
+          args: "Stock status: ${{ steps.parse_data.outputs.stock_status }}."
