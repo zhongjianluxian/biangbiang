@@ -1,0 +1,43 @@
+on:
+  schedule:
+    # Run every 30 minutes
+    - cron:  '30 * * * *'
+
+name: Check for Costco infrant formula changes
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+
+      # Use cURL to fetch the given URL, saving the response to `data.json`
+      - name: Fetch data
+        run: curl -L -A "Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/81.0" https://www.costco.com/similac-360-total-care-ready-to-feed-infant-formula-8-fl-oz%2c-24-pack.product.100987988.html | grep 'title="Out of Stock"' > data.txt
+
+      # Optionally, use `jq` to pull one or more fields from the JSON to include in the SMS message
+      - name: Parse data
+        id: parse_data
+        run: echo '::set-output name=helloworld::'$(echo "helloworld")
+          
+      # Compare the response to the previous run, using a hash of the response as the cache key
+      - name: Fetch Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: data.txt
+          key: ${{ hashFiles('data.txt') }}
+      
+      # If there was not a cache hit (meaning the response changed), notify me via text message
+      # See https://github.com/twilio-labs/actions-sms for setup instructions
+      # You could use a different notification action here, so long as you include the `if` condition below
+      - name: Notify if data has changed
+        uses: twilio-labs/actions-sms@v1
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
+          TWILIO_API_SECRET: ${{ secrets.TWILIO_API_SECRET }}
+        with:
+          fromPhoneNumber: ${{ secrets.from_phone }}
+          toPhoneNumber: ${{ secrets.to_phone }}
+          message: "There's been a change! txt is now ${{ steps.parse_data.outputs.helloworld }}."
